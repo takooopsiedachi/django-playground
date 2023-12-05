@@ -1,0 +1,83 @@
+version: '3'
+services:
+  django-app:
+    image: hello-django:0.1.1
+    container_name: app
+    command: sh
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./code:/usr/src/app/code
+    stdin_open: true
+    tty: true
+    networks:
+      - mynet
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - memcached
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-totoro}
+      - POSTGRES_PASSWORD=${PGPASSWORD:?database password not set}
+      - POSTGRES_DB=${POSTGRES_DB:-blogdb}
+      - REDIS_HOST=redis
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672/
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    hostname: db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-totoro}
+      - POSTGRES_PASSWORD=${PGPASSWORD:?database password not set}
+      - POSTGRES_DB=${POSTGRES_DB:-blogdb}
+    ports:
+      - "5432:5432"
+    networks:
+      - mynet
+    volumes:
+      - hello-django:/var/lib/postgressql/data
+  
+  redis:
+    image: redis:latest
+    container_name: redis
+    hostname: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - mynet
+    volumes:
+      - redis-data:/data
+  
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - mynet
+
+  memcached:
+    image: memcached
+    container_name: memcached
+    hostname: memcached
+    ports:
+      - "11211:11211"
+    command: memcached -m 64
+    networks:
+      - mynet
+
+
+volumes:
+  hello-django:
+  redis-data:
+
+networks:
+  mynet:
+    driver: bridge
